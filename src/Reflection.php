@@ -104,7 +104,6 @@ class Reflection
             );
         }
 
-//        $rc = self::$classes[$class] ?? null;
         $rc = self::$cache[self::CACHE_CLASSES][$class] ?? null;
         if ($rc instanceof ReflectionClass) {
             return $rc;
@@ -116,8 +115,10 @@ class Reflection
             );
         }
 
-//        self::$classes[$class] = $rc = new ReflectionClass($class);
-        self::$cache[self::CACHE_CLASSES][$class] = $rc = new ReflectionClass($class);
+        $rc = new ReflectionClass($class);
+
+        self::$cache[self::CACHE_CLASSES][$class] = $rc;
+
         return $rc;
     }
 
@@ -127,8 +128,6 @@ class Reflection
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-//        $cpskey = "{$class}::" . self::CACHE_ALL;
-
         $cached = self::$cache[self::CACHE_PROPERTIES][$class][self::CACHE_ALL] ?? false;
         if ($cached === true) {
             $rps = self::$cache[self::CACHE_PROPERTIES][$class];
@@ -137,9 +136,14 @@ class Reflection
         }
 
         $rps = [];
-        $rprops = $rc->getProperties();
-        foreach ($rprops as $rp) {
+        foreach ($rc->getProperties() as $rp) {
             $rps[$rp->getName()] = $rp;
+        }
+        // Cache values for declaring-class as well
+        foreach ($rps as $name => $rp) {
+            if ($class !== $dclass = $rp->getDeclaringClass()->getName()) {
+                self::$cache[self::CACHE_PROPERTIES][$dclass][$name] = $rp;
+            }
         }
 
         $rps[self::CACHE_ALL] = true; // Set the all-cached flag
@@ -149,38 +153,27 @@ class Reflection
         return $rps;
     }
 
-    public static function getProperty($objectOrClass, string $property): ?ReflectionProperty
+    public static function getProperty($objectOrClass, string $name): ?ReflectionProperty
     {
         $rc = self::getClass($objectOrClass);
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-//        $cpkey = "{$class}::{$property}";
-
-//        $rp = self::$properties[$cpkey] ?? null;
-//        $rp = self::$cache[self::CACHE_PROPERTIES][$cpkey] ?? null;
-        $rp = self::$cache[self::CACHE_PROPERTIES][$class][$property] ?? null;
+        $rp = self::$cache[self::CACHE_PROPERTIES][$class][$name] ?? null;
         if ($rp instanceof ReflectionProperty) {
             return $rp;
         }
 
-        if ($rc->hasProperty($property)) {
-            $rp = $rc->getProperty($property);
-//            self::$properties[$cpkey] = $rm;
-//            self::$cache[self::CACHE_PROPERTIES][$cpkey] = $rp;
-            self::$cache[self::CACHE_PROPERTIES][$class][$property] = $rp;
-            $dclass = $rp->getDeclaringClass()->getName();
-            if ($dclass !== $class) {
-//                $dcpkey = "{$dclass}::{$property}";
-//                self::$cache[self::CACHE_PROPERTIES][$dcpkey] = $rp;
-                self::$cache[self::CACHE_PROPERTIES][$dclass][$property] = $rp;
+        if ($rc->hasProperty($name)) {
+            $rp = $rc->getProperty($name);
+            self::$cache[self::CACHE_PROPERTIES][$class][$name] = $rp;
+            if ($class !== $dclass = $rp->getDeclaringClass()->getName()) {
+                self::$cache[self::CACHE_PROPERTIES][$dclass][$name] = $rp;
             }
             return $rp;
         }
 
-        throw new RuntimeException(
-            "A property named `{$class}::{$property}` is not defined!"
-        );
+        return null;
     }
 
     public static function getMethods($objectOrClass): array
@@ -188,8 +181,6 @@ class Reflection
         $rc = self::getClass($objectOrClass);
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
-
-//        $cpskey = "{$class}::" . self::CACHE_ALL;
 
         $cached = self::$cache[self::CACHE_METHODS][$class][self::CACHE_ALL] ?? false;
         if ($cached === true) {
@@ -199,9 +190,14 @@ class Reflection
         }
 
         $rms = [];
-        $rmethods = $rc->getMethods();
-        foreach ($rmethods as $rm) {
+        foreach ($rc->getMethods() as $rm) {
             $rms[$rm->getName()] = $rm;
+        }
+        // Cache values for declaring-class as well
+        foreach ($rms as $name => $rm) {
+            if ($class !== $dclass = $rm->getDeclaringClass()->getName()) {
+                self::$cache[self::CACHE_PROPERTIES][$dclass][$name] = $rm;
+            }
         }
 
         $rms[self::CACHE_ALL] = true; // Set the all-cached flag
@@ -211,37 +207,28 @@ class Reflection
         return $rms;
     }
 
-    public static function getMethod($objectOrClass, string $method): ?ReflectionMethod
+    public static function getMethod($objectOrClass, string $name): ?ReflectionMethod
     {
         $rc = self::getClass($objectOrClass);
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-//        $cmkey = "{$class}::{$method}";
-
-//        $rm = self::$methods[$cmkey] ?? null;
-//        $rm = self::$cache[self::CACHE_METHODS][$cmkey] ?? null;
-        $rm = self::$cache[self::CACHE_METHODS][$class][$method] ?? null;
+        $rm = self::$cache[self::CACHE_METHODS][$class][$name] ?? null;
         if ($rm instanceof ReflectionMethod) {
             return $rm;
         }
 
-        if ($rc->hasMethod($method)) {
-            $rm = $method === '__construct' ? $rc->getConstructor() : $rc->getMethod($method);
-//            self::$methods[$cmkey] = $rm;
-//            self::$cache[self::CACHE_METHODS][$cmkey] = $rm;
-            self::$cache[self::CACHE_METHODS][$class][$method] = $rm;
-            $dclass = $rm->getDeclaringClass()->getName();
-            if ($dclass !== $class) {
-//                $dcmkey = "{$dclass}::{$method}";
-//                self::$cache[self::CACHE_METHODS][$dcmkey] = $rm;
-                self::$cache[self::CACHE_METHODS][$dclass][$method] = $rm;
+        if ($rc->hasMethod($name)) {
+            $rm = $name === '__construct' ? $rc->getConstructor() : $rc->getMethod($name);
+            self::$cache[self::CACHE_METHODS][$class][$name] = $rm;
+            if ($class !== $dclass = $rm->getDeclaringClass()->getName()) {
+                self::$cache[self::CACHE_METHODS][$dclass][$name] = $rm;
             }
             return $rm;
         }
 
         throw new RuntimeException(
-            "A method named `{$class}::{$method}` is not defined!"
+            "A method named `{$class}::{$name}` has not been found!"
         );
     }
 
@@ -264,8 +251,9 @@ class Reflection
             );
         }
 
-//        self::$functions[$function] = $rf = new ReflectionFunction($function);
-        self::$cache[self::CACHE_FUNCTIONS][$function] = $rf = new ReflectionFunction($function);
+        $rf = new ReflectionFunction($function);
+
+        self::$cache[self::CACHE_FUNCTIONS][$function] = $rf;
         return $rf;
     }
 
