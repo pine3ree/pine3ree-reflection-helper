@@ -10,6 +10,7 @@ namespace pine3ree\Helper;
 use Closure;
 //use Psr\Container\ContainerInterface;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -41,10 +42,10 @@ class Reflection
     public const CACHE_PARAMETERS = ReflectionParameter::class;
 
     private const EMPTY_CACHE = [
-        self::CACHE_CLASSES => [],
+        self::CACHE_CLASSES    => [],
         self::CACHE_PROPERTIES => [],
-        self::CACHE_METHODS => [],
-        self::CACHE_FUNCTIONS => [],
+        self::CACHE_METHODS    => [],
+        self::CACHE_FUNCTIONS  => [],
         self::CACHE_PARAMETERS => [],
     ];
 
@@ -55,17 +56,14 @@ class Reflection
      */
     private static $cache = self::EMPTY_CACHE;
 
-
-    public static function getClass($objectOrClass): ReflectionClass
+    public static function getClass($objectOrClass): ?ReflectionClass
     {
         if (is_object($objectOrClass)) {
             $class = get_class($objectOrClass);
         } elseif (is_string($objectOrClass)) {
             $class = $objectOrClass;
         } else {
-            throw new RuntimeException(
-                "The `objectOrClass` argument must be an object or a class-string"
-            );
+            return null;
         }
 
         $rc = self::$cache[self::CACHE_CLASSES][$class] ?? null;
@@ -74,21 +72,23 @@ class Reflection
         }
 
         if (!class_exists($class)) {
-            throw new RuntimeException(
-                "Unable to find a class named `{$class}`"
-            );
+            return null;
         }
 
-        $rc = new ReflectionClass($class);
+        $rc = new ReflectionClass($objectOrClass);
 
         self::$cache[self::CACHE_CLASSES][$class] = $rc;
 
         return $rc;
     }
 
-    public static function getProperties($objectOrClass): array
+    public static function getProperties($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
+
+        if ($rc === null) {
+            return null;
+        }
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
@@ -121,6 +121,10 @@ class Reflection
     {
         $rc = self::getClass($objectOrClass);
 
+        if ($rc === null) {
+            return null;
+        }
+
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
         $rp = self::$cache[self::CACHE_PROPERTIES][$class][$name] ?? null;
@@ -143,6 +147,10 @@ class Reflection
     public static function getMethods($objectOrClass): array
     {
         $rc = self::getClass($objectOrClass);
+
+        if ($rc === null) {
+            return null;
+        }
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
@@ -175,6 +183,10 @@ class Reflection
     {
         $rc = self::getClass($objectOrClass);
 
+        if ($rc === null) {
+            return null;
+        }
+
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
         $rm = self::$cache[self::CACHE_METHODS][$class][$name] ?? null;
@@ -191,9 +203,7 @@ class Reflection
             return $rm;
         }
 
-        throw new RuntimeException(
-            "A method named `{$class}::{$name}` has not been found!"
-        );
+        return null;
     }
 
     public static function getConstructor($objectOrClass): ?ReflectionMethod
@@ -209,9 +219,7 @@ class Reflection
         }
 
         if (!function_exists($function)) {
-            throw new RuntimeException(
-                "Unable to find a function definition for `{$function}`"
-            );
+            return null;
         }
 
         $rf = new ReflectionFunction($function);
@@ -226,7 +234,7 @@ class Reflection
      * @param string|array{0: object|string, 1: string}|object $callable
      *      An [object/class, method] array expression, a function or an invokable
      *      object. Use [fqcn, '__construct'] for class constructors.
-     * @return ReflectionParameter[]
+     * @return ReflectionParameter[]|null
      * @throws RuntimeException
      */
     public static function getParameters($callable): ?array
@@ -246,9 +254,7 @@ class Reflection
             return self::getParametersForFunction($callable, false);
         }
 
-        throw new RuntimeException(
-            "Cannot fetch a reflection method or function for given callable expression!"
-        );
+        return null;
     }
 
     /**
@@ -276,6 +282,10 @@ class Reflection
 
         $rc = self::getClass($object);
 
+        if ($rc === null) {
+            return null;
+        }
+
         $class = is_string($object) ? $object : $rc->getName();
 
         // Try cached reflection parameters first, if any
@@ -283,7 +293,8 @@ class Reflection
         if ($parameters === null) {
             $rm = self::getMethod($object, $method);
             if ($rm instanceof ReflectionMethod) {
-                self::$cache[self::CACHE_PARAMETERS][$class][$method] = $parameters = $rm->getParameters();
+                $parameters = $rm->getParameters();
+                self::$cache[self::CACHE_PARAMETERS][$class][$method] = $parameters;
             }
         }
 
@@ -325,22 +336,21 @@ class Reflection
             return $parameters;
         }
 
-        throw new RuntimeException(
-            "The provided `object` argument is an not invokable!"
-        );
+        return null;
     }
 
-    private static function getParametersForFunction(string $function, bool $check_existence = true): array
+    private static function getParametersForFunction(string $function, bool $check_existence = true): ?array
     {
         if ($check_existence && !function_exists($function)) {
-            throw new RuntimeException(
-                "The provided function `{$function}` is not defined!"
-            );
+            return null;
         }
 
         $parameters = self::$cache[self::CACHE_PARAMETERS][$function] ?? null;
         if ($parameters === null) {
             $rf = self::getFunction($function);
+            if ($rf === null) {
+                return null;
+            }
             $parameters = $rf->getParameters();
             self::$cache[self::CACHE_PARAMETERS][$function] = $parameters;
         }
