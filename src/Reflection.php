@@ -292,7 +292,6 @@ class Reflection
                 );
             }
             return self::getParametersForMethod($object, $method, true);
-            //return self::getParametersForCallableArrayExpression($callable);
         }
 
         // Case: closure/invokable-object
@@ -307,7 +306,6 @@ class Reflection
                 return self::getParametersForMethod($callable, $method, false);
             }
             return null;
-            //return self::getParametersForInvokableObject($callable);
         }
 
         // Case: function
@@ -317,96 +315,6 @@ class Reflection
 
         return null;
     }
-
-//    /**
-//     *
-//     * @param array{0: object|string, 1: string} $callable An [object/class, method] array expression
-//     * @return ReflectionParameter[]|null
-//     * @throws RuntimeException
-//     */
-//    private static function getParametersForCallableArrayExpression(array $callable): ?array
-//    {
-//        $object = $callable[0] ?? null;
-//        $method = $callable[1] ?? null;
-//
-//        if (empty($method) || !is_string($method)) {
-//            throw new RuntimeException(
-//                "An invalid method value was provided in element {1} of the callable array-expression!"
-//            );
-//        }
-//
-//        if (empty($object)) {
-//            throw new RuntimeException(
-//                "An empty object/class value was provided in element {0} of the callable array-expression!"
-//            );
-//        }
-//
-//        return self::getParametersForMethod($object, $method, true);
-////
-////        $rc = self::getClass($object);
-////
-////        if ($rc === null) {
-////            return null;
-////        }
-////
-////        $class = is_string($object) ? $object : $rc->getName();
-////
-////        // Use a reference to make code easier to read
-////        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-////
-////        // Try cached reflection parameters first, if any
-////        $parameters = $cached_parameters[$class][$method] ?? null;
-////        if ($parameters === null) {
-////            $rm = self::getMethod($object, $method);
-////            if ($rm === null) {
-////                return null;
-////            }
-////            $parameters = $rm->getParameters();
-////            $cached_parameters[$class][$method] = $parameters;
-////        }
-////
-////        return $parameters;
-//    }
-
-//    public static function getParametersForInvokableObject(object $object): ?array
-//    {
-//        // Anonymous/arrow function
-//        if ($object instanceof Closure) {
-//            $rf = new ReflectionFunction($object);
-//            return $rf->getParameters();
-//        }
-//
-//        // Invokable object
-//        if (method_exists($object, $method = '__invoke')) {
-//            return self::getParametersForMethod($object, $method, false);
-////            $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-////            // Try cached reflection parameters first, if any
-////            $class = get_class($object);
-////            $parameters = $cached_parameters[$class][$method] ?? null;
-////            if ($parameters === null) {
-////                $rm = self::getMethod($object, $method);
-////                if ($rm === null) {
-////                    return null;
-////                }
-////                $dclass = $rm->getDeclaringClass()->getName();
-////                if ($dclass === $class) {
-////                    return null;
-////                }
-////                $parameters = $cached_parameters[$dclass][$method] ?? null;
-////            }
-////            if ($parameters === null) {
-////                $parameters = $rm->getParameters();
-////                $cached_parameters[$class][$method] = $parameters;
-////                if ($dclass !== $class) {
-////                    $cached_parameters[$dclass][$method] = $parameters;
-////                }
-////            }
-////
-////            return $parameters;
-//        }
-//
-//        return null;
-//    }
 
     public static function getParametersForMethod($objectOrClass, string $method, bool $check_existence = true): ?array
     {
@@ -491,7 +399,8 @@ class Reflection
     }
 
     /**
-     * @internal
+     * @internal Used for unit tests
+     *
      * @param string|null $target
      * @return array|null
      */
