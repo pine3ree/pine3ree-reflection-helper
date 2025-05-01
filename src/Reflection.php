@@ -1,8 +1,8 @@
 <?php
 
 /**
- * @package     pine3ree-reflection
- * @author      pine3ree https://github.com/pine3ree
+ * @package pine3ree-reflection
+ * @author  pine3ree https://github.com/pine3ree
  */
 
 namespace pine3ree\Helper;
@@ -102,7 +102,6 @@ class Reflection
     public static function getProperties($objectOrClass, bool $cache_results = false): ?array
     {
         $rc = self::getClass($objectOrClass);
-
         if ($rc === null) {
             return null;
         }
@@ -144,7 +143,6 @@ class Reflection
     public static function getProperty($objectOrClass, string $name): ?ReflectionProperty
     {
         $rc = self::getClass($objectOrClass);
-
         if ($rc === null) {
             return null;
         }
@@ -175,7 +173,6 @@ class Reflection
     public static function getMethods($objectOrClass, bool $cache_results = false): ?array
     {
         $rc = self::getClass($objectOrClass);
-
         if ($rc === null) {
             return null;
         }
@@ -218,7 +215,6 @@ class Reflection
     public static function getMethod($objectOrClass, string $name): ?ReflectionMethod
     {
         $rc = self::getClass($objectOrClass);
-
         if ($rc === null) {
             return null;
         }
@@ -283,12 +279,35 @@ class Reflection
     {
         // Case: callable array expression [object/class, method]
         if (is_array($callable)) {
-            return self::getParametersForCallableArrayExpression($callable);
+            $object = $callable[0] ?? null;
+            $method = $callable[1] ?? null;
+            if (empty($object)) {
+                throw new RuntimeException(
+                    "An empty object/class value was provided in element {0} of the callable array-expression!"
+                );
+            }
+            if (empty($method) || !is_string($method)) {
+                throw new RuntimeException(
+                    "An invalid method value was provided in element {1} of the callable array-expression!"
+                );
+            }
+            return self::getParametersForMethod($object, $method, true);
+            //return self::getParametersForCallableArrayExpression($callable);
         }
 
-        // Case: invokable-object
-        if (is_object($callable) && is_callable($callable)) {
-            return self::getParametersForInvokableObject($callable, false);
+        // Case: closure/invokable-object
+        if (is_object($callable)) {
+            // Anonymous/arrow function
+            if ($callable instanceof Closure) {
+                $rf = new ReflectionFunction($callable);
+                return $rf->getParameters();
+            }
+            // Invokable object
+            if (method_exists($callable, $method = '__invoke')) {
+                return self::getParametersForMethod($callable, $method, false);
+            }
+            return null;
+            //return self::getParametersForInvokableObject($callable);
         }
 
         // Case: function
@@ -299,105 +318,103 @@ class Reflection
         return null;
     }
 
-    /**
-     *
-     * @param array{0: object|string, 1: string} $callable An [object/class, method] array expression
-     * @return ReflectionParameter[]|null
-     * @throws RuntimeException
-     */
-    private static function getParametersForCallableArrayExpression(array $callable): ?array
-    {
-        $object = $callable[0] ?? null;
-        $method = $callable[1] ?? null;
-
-        if (empty($method) || !is_string($method)) {
-            throw new RuntimeException(
-                "An invalid method value was provided in element {1} of the callable array-expression!"
-            );
-        }
-
-        if (empty($object)) {
-            throw new RuntimeException(
-                "An empty object/class value was provided in element {0} of the callable array-expression!"
-            );
-        }
-
-        $rc = self::getClass($object);
-
-        if ($rc === null) {
-            return null;
-        }
-
-        $class = is_string($object) ? $object : $rc->getName();
-
-        // Use a reference to make code easier to read
-        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-
-        // Try cached reflection parameters first, if any
-        $parameters = $cached_parameters[$class][$method] ?? null;
-        if ($parameters === null) {
-            $rm = self::getMethod($object, $method);
-            if ($rm === null) {
-                return null;
-            }
-            $parameters = $rm->getParameters();
-            $cached_parameters[$class][$method] = $parameters;
-        }
-
-        return $parameters;
-    }
-
-    public static function getParametersForInvokableObject(object $object, bool $check_callable = true): ?array
-    {
-        if ($check_callable && !is_callable($object)) {
-            throw new RuntimeException(
-                "The provided `object` is not invokable!"
-            );
-        }
-
-        // Anonymous/arrow function
-        if ($object instanceof Closure) {
-            $rf = new ReflectionFunction($object);
-            return $rf->getParameters();
-        }
-
-        // Invokable object
-        $method = '__invoke';
-        if (method_exists($object, $method)) {
-            return self::getParametersForMethod($object, $method, false);
-//            $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-//            // Try cached reflection parameters first, if any
-//            $class = get_class($object);
-//            $parameters = $cached_parameters[$class][$method] ?? null;
-//            if ($parameters === null) {
-//                $rm = self::getMethod($object, $method);
-//                if ($rm === null) {
-//                    return null;
-//                }
-//                $dclass = $rm->getDeclaringClass()->getName();
-//                if ($dclass === $class) {
-//                    return null;
-//                }
-//                $parameters = $cached_parameters[$dclass][$method] ?? null;
-//            }
-//            if ($parameters === null) {
-//                $parameters = $rm->getParameters();
-//                $cached_parameters[$class][$method] = $parameters;
-//                if ($dclass !== $class) {
-//                    $cached_parameters[$dclass][$method] = $parameters;
-//                }
-//            }
+//    /**
+//     *
+//     * @param array{0: object|string, 1: string} $callable An [object/class, method] array expression
+//     * @return ReflectionParameter[]|null
+//     * @throws RuntimeException
+//     */
+//    private static function getParametersForCallableArrayExpression(array $callable): ?array
+//    {
+//        $object = $callable[0] ?? null;
+//        $method = $callable[1] ?? null;
 //
-//            return $parameters;
-        }
+//        if (empty($method) || !is_string($method)) {
+//            throw new RuntimeException(
+//                "An invalid method value was provided in element {1} of the callable array-expression!"
+//            );
+//        }
+//
+//        if (empty($object)) {
+//            throw new RuntimeException(
+//                "An empty object/class value was provided in element {0} of the callable array-expression!"
+//            );
+//        }
+//
+//        return self::getParametersForMethod($object, $method, true);
+////
+////        $rc = self::getClass($object);
+////
+////        if ($rc === null) {
+////            return null;
+////        }
+////
+////        $class = is_string($object) ? $object : $rc->getName();
+////
+////        // Use a reference to make code easier to read
+////        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
+////
+////        // Try cached reflection parameters first, if any
+////        $parameters = $cached_parameters[$class][$method] ?? null;
+////        if ($parameters === null) {
+////            $rm = self::getMethod($object, $method);
+////            if ($rm === null) {
+////                return null;
+////            }
+////            $parameters = $rm->getParameters();
+////            $cached_parameters[$class][$method] = $parameters;
+////        }
+////
+////        return $parameters;
+//    }
 
-        return null;
-    }
+//    public static function getParametersForInvokableObject(object $object): ?array
+//    {
+//        // Anonymous/arrow function
+//        if ($object instanceof Closure) {
+//            $rf = new ReflectionFunction($object);
+//            return $rf->getParameters();
+//        }
+//
+//        // Invokable object
+//        if (method_exists($object, $method = '__invoke')) {
+//            return self::getParametersForMethod($object, $method, false);
+////            $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
+////            // Try cached reflection parameters first, if any
+////            $class = get_class($object);
+////            $parameters = $cached_parameters[$class][$method] ?? null;
+////            if ($parameters === null) {
+////                $rm = self::getMethod($object, $method);
+////                if ($rm === null) {
+////                    return null;
+////                }
+////                $dclass = $rm->getDeclaringClass()->getName();
+////                if ($dclass === $class) {
+////                    return null;
+////                }
+////                $parameters = $cached_parameters[$dclass][$method] ?? null;
+////            }
+////            if ($parameters === null) {
+////                $parameters = $rm->getParameters();
+////                $cached_parameters[$class][$method] = $parameters;
+////                if ($dclass !== $class) {
+////                    $cached_parameters[$dclass][$method] = $parameters;
+////                }
+////            }
+////
+////            return $parameters;
+//        }
+//
+//        return null;
+//    }
 
     public static function getParametersForMethod($objectOrClass, string $method, bool $check_existence = true): ?array
     {
-        $class = self::getClassName($objectOrClass, $check_existence);
+        if (empty($method)) {
+            return null;
+        }
 
+        $class = self::getClassName($objectOrClass, $check_existence);
         if (empty($class)) {
             return null;
         }
@@ -416,18 +433,18 @@ class Reflection
         }
 
         $rm = self::getMethod($objectOrClass, $method);
-
         if ($rm === null) {
             return null;
         }
 
         $dclass = $rm->getDeclaringClass()->getName();
+            var_dump($dclass, $class); exit;
 
         // Try cached reflection parameters in declaring class, if different
         if ($dclass !== $class) {
             $parameters = $cached_parameters[$dclass][$method] ?? null;
             if (is_array($parameters)) {
-                $cached_parameters[$class][$method] =& $cached_parameters[$dclass][$method];
+                $cached_parameters[$class][$method] = $parameters;
                 return $parameters;
             }
         }
@@ -436,8 +453,7 @@ class Reflection
         $parameters = $rm->getParameters();
         $cached_parameters[$dclass][$method] = $parameters;
         if ($dclass !== $class) {
-//            $cached_parameters[$class][$method] = $parameters;
-            $cached_parameters[$class][$method] =& $cached_parameters[$dclass][$method];
+            $cached_parameters[$class][$method] = $parameters;
         }
 
         return $parameters;
