@@ -14,6 +14,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
+use Reflector;
 //use RuntimeException;
 //use Throwable;
 
@@ -27,6 +28,11 @@ use function method_exists;
 
 /**
  * A reflection helper class with results caching
+ *
+ * This helper offer a variety of static method to get reflection-objects of
+ * various types for given objects/class-strings.
+ *
+ * Instead of throwing exceptions, NULL is returned for failing scenarios
  */
 class Reflection
 {
@@ -48,7 +54,11 @@ class Reflection
     /**
      * A cache of resolved reflection classes indexed by class name
      *
-     * @var array<string, array<string, ReflectionClass|ReflectionProperty|ReflectionMethod|ReflectionFunction|ReflectionParameter>>
+     * @var array<string, array<string, ReflectionFunction>>|
+     *      array<string, array<string, ReflectionClass>>|
+     *      array<string, array<string, array<string, ReflectionProperty|ReflectionMethod|true>>>|
+     *      array<string, array<string, ReflectionParameter>|
+     *      array<string, array<string, array<string, ReflectionParameter>>
      */
     private static $cache = self::EMPTY_CACHE;
 
