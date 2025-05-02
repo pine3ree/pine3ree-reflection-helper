@@ -103,7 +103,7 @@ class Reflection
             || $propertyOrMethod instanceof ReflectionProperty
         ) {
             $class = get_class($propertyOrMethod);
-            $mname  = $propertyOrMethod->getName();
+            $mname = $propertyOrMethod->getName();
 
             $dclass = self::$cache[$class][$mname] ?? null;
             if (empty($dclass)) {
