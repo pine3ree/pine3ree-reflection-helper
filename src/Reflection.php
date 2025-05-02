@@ -30,7 +30,7 @@ use function is_string;
 use function method_exists;
 
 /**
- * A reflection helper class that support result caching
+ * A reflection helper class with results caching
  */
 class Reflection
 {
@@ -99,7 +99,7 @@ class Reflection
         return null;
     }
 
-    public static function getProperties($objectOrClass, bool $cache_results = false): ?array
+    public static function getProperties($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
         if ($rc === null) {
@@ -121,10 +121,6 @@ class Reflection
         $rps = [];
         foreach ($rc->getProperties() as $rp) {
             $rps[$rp->getName()] = $rp;
-        }
-
-        if (!$cache_results) {
-            return $rps;
         }
 
         // Cache values for declaring-class as well
@@ -170,7 +166,7 @@ class Reflection
         return null;
     }
 
-    public static function getMethods($objectOrClass, bool $cache_results = false): ?array
+    public static function getMethods($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
         if ($rc === null) {
@@ -192,10 +188,6 @@ class Reflection
         $rms = [];
         foreach ($rc->getMethods() as $rm) {
             $rms[$rm->getName()] = $rm;
-        }
-
-        if (!$cache_results) {
-            return $rms;
         }
 
         // Cache values for declaring-class as well
@@ -288,7 +280,7 @@ class Reflection
             }
             if (empty($method) || !is_string($method)) {
                 throw new RuntimeException(
-                    "An invalid method value was provided in element {1} of the callable array-expression!"
+                    "An empty/invalid method value was provided in element {1} of the callable array-expression!"
                 );
             }
             return self::getParametersForMethod($object, $method, true);
@@ -296,7 +288,7 @@ class Reflection
 
         // Case: closure/invokable-object
         if (is_object($callable)) {
-            // Anonymous/arrow function
+            // Anonymous/arrow function (cannot be cached)
             if ($callable instanceof Closure) {
                 $rf = new ReflectionFunction($callable);
                 return $rf->getParameters();
@@ -310,14 +302,17 @@ class Reflection
 
         // Case: function
         if (is_string($callable) && function_exists($callable)) {
-            return self::getParametersForFunction($callable, false);
+            return self::getParametersForFunction($callable, false, false);
         }
 
         return null;
     }
 
-    public static function getParametersForMethod($objectOrClass, string $method, bool $check_existence = true): ?array
-    {
+    public static function getParametersForMethod(
+        $objectOrClass,
+        string $method,
+        bool $check_existence = true
+    ): ?array {
         if (empty($method)) {
             return null;
         }
@@ -346,7 +341,6 @@ class Reflection
         }
 
         $dclass = $rm->getDeclaringClass()->getName();
-            var_dump($dclass, $class); exit;
 
         // Try cached reflection parameters in declaring class, if different
         if ($dclass !== $class) {
@@ -359,6 +353,7 @@ class Reflection
 
         // Get and cache the parameters
         $parameters = $rm->getParameters();
+
         $cached_parameters[$dclass][$method] = $parameters;
         if ($dclass !== $class) {
             $cached_parameters[$class][$method] = $parameters;
@@ -367,8 +362,10 @@ class Reflection
         return $parameters;
     }
 
-    public static function getParametersForFunction(string $function, bool $check_existence = true): ?array
-    {
+    public static function getParametersForFunction(
+        string $function,
+        bool $check_existence = true
+    ): ?array {
         if ($check_existence && !function_exists($function)) {
             return null;
         }
@@ -377,14 +374,18 @@ class Reflection
         $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
 
         $parameters = $cached_parameters[$function] ?? null;
-        if ($parameters === null) {
-            $rf = self::getFunction($function);
-            if ($rf === null) {
-                return null;
-            }
-            $parameters = $rf->getParameters();
-            $cached_parameters[$function] = $parameters;
+        if (is_array($parameters)) {
+            return $parameters;
         }
+
+        $rf = self::getFunction($function);
+        if ($rf === null) {
+            return null;
+        }
+
+        $parameters = $rf->getParameters();
+
+        $cached_parameters[$function] = $parameters;
 
         return $parameters;
     }
