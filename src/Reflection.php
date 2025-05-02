@@ -230,46 +230,6 @@ class Reflection
         return null;
     }
 
-    /**
-     *
-     * @param string|array{0: object|string, 1: string}|object $callable
-     *      An [object/class, method] array expression, a function or an invokable
-     *      object. Use [fqcn, '__construct'] for class constructors.
-     * @return ReflectionParameter[]|null
-     * @throws RuntimeException
-     */
-    public static function getParameters($callable): ?array
-    {
-        // Case: callable array expression [object/class, method]
-        if (is_array($callable)) {
-            $object = $callable[0] ?? null;
-            $method = $callable[1] ?? null;
-            if (empty($object)) {
-                throw new RuntimeException(
-                    "An empty object/class value was provided in element {0} of the callable array-expression!"
-                );
-            }
-            if (empty($method) || !is_string($method)) {
-                throw new RuntimeException(
-                    "An empty/invalid method value was provided in element {1} of the callable array-expression!"
-                );
-            }
-            return self::getParametersForMethod($object, $method, true);
-        }
-
-        // Case: closure/invokable-object
-        if (is_object($callable)) {
-            return self::getParametersForInvokable($callable);
-        }
-
-        // Case: function
-        if (is_string($callable) && function_exists($callable)) {
-            return self::getParametersForFunction($callable, false);
-        }
-
-        return null;
-    }
-
     public static function getParametersForMethod(
         $objectOrClass,
         string $method,
