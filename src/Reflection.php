@@ -97,28 +97,6 @@ class Reflection
         return null;
     }
 
-    private static function getDeclaringClassName(object $propertyOrMethod): ?string
-    {
-        if ($propertyOrMethod instanceof ReflectionMethod
-            || $propertyOrMethod instanceof ReflectionProperty
-        ) {
-            $class = get_class($propertyOrMethod);
-            $mname = $propertyOrMethod->getName();
-
-            $cached_dclasses =& self::$cache[self::CACHE_DECLARING];
-
-            $dclass = $cached_dclasses[$class][$mname] ?? null;
-            if (empty($dclass)) {
-                $dclass = $propertyOrMethod->getDeclaringClass()->getName();
-                $cached_dclasses[$class][$mname] = $dclass;
-            }
-
-            return $dclass;
-        }
-
-        return null;
-    }
-
     public static function getProperties($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
@@ -143,13 +121,6 @@ class Reflection
             $rps[$rp->getName()] = $rp;
         }
 
-//        // Cache values for declaring-class as well
-//        foreach ($rps as $name => $rp) {
-//            $dclass = self::getDeclaringClassName($rp);
-//            if ($dclass && $dclass !== $class && empty($cached_properties[$dclass][$name])) {
-//                $cached_properties[$dclass][$name] = $rp;
-//            }
-//        }
         $cached_properties[$class] = $rps;
         $cached_properties[$class][self::CACHE_ALL] = true;
 
@@ -176,10 +147,6 @@ class Reflection
         if ($rc->hasProperty($name)) {
             $rp = $rc->getProperty($name);
             $cached_properties[$class][$name] = $rp;
-//            $dclass = self::getDeclaringClassName($rp);
-//            if ($dclass && $dclass !== $class && empty($cached_properties[$dclass][$name])) {
-//                $cached_properties[$dclass][$name] = $rp;
-//            }
             return $rp;
         }
 
@@ -210,14 +177,6 @@ class Reflection
             $rms[$rm->getName()] = $rm;
         }
 
-//        // Cache values for declaring-class as well
-//        foreach ($rms as $name => $rm) {
-//            $dclass = self::getDeclaringClassName($rm);
-//            if ($dclass && $dclass !== $class && empty($cached_methods[$dclass][$name])) {
-//                $cached_methods[$dclass][$name] = $rm;
-//            }
-//        }
-
         $cached_methods[$class] = $rms;
         $cached_methods[$class][self::CACHE_ALL] = true; // Set the all-cached flag
 
@@ -244,10 +203,6 @@ class Reflection
         if ($rc->hasMethod($name)) {
             $rm = $name === '__construct' ? $rc->getConstructor() : $rc->getMethod($name);
             $cached_methods[$class][$name] = $rm;
-//            $dclass = self::getDeclaringClassName($rm);
-//            if ($dclass && $dclass !== $class && empty($cached_methods[$dclass][$name])) {
-//                $cached_methods[$dclass][$name] = $rm;
-//            }
             return $rm;
         }
 
@@ -358,24 +313,10 @@ class Reflection
             return null;
         }
 
-//        $dclass = self::getDeclaringClassName($rm);
-//
-//        // Try cached reflection parameters in declaring class, if different
-//        if ($dclass !== $class) {
-//            $parameters = $cached_parameters[$dclass][$method] ?? null;
-//            if (is_array($parameters)) {
-//                $cached_parameters[$class][$method] = $parameters;
-//                return $parameters;
-//            }
-//        }
-
         // Get and cache the parameters
         $parameters = $rm->getParameters();
 
-//        $cached_parameters[$dclass][$method] = $parameters;
-//        if ($dclass !== $class) {
-            $cached_parameters[$class][$method] = $parameters;
-//        }
+        $cached_parameters[$class][$method] = $parameters;
 
         return $parameters;
     }
