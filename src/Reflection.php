@@ -266,15 +266,13 @@ class Reflection
             return $rf;
         }
 
-        if (!function_exists($function)) {
-            return null;
+        if (function_exists($function)) {
+            $rf = new ReflectionFunction($function);
+            $cache_functions[$function] = $rf;
+            return $rf;
         }
 
-        $rf = new ReflectionFunction($function);
-
-        $cache_functions[$function] = $rf;
-
-        return $rf;
+        return null;
     }
 
     /**
