@@ -321,6 +321,21 @@ class Reflection
         return $parameters;
     }
 
+    public static function getParametersForInvokable(object $invokable): ?array
+    {
+        // Anonymous/arrow function (cannot be cached)
+        if ($invokable instanceof Closure) {
+            return (new ReflectionFunction($invokable))->getParameters();
+        }
+
+        // Invokable object
+        if (method_exists($invokable, $method = '__invoke')) {
+            return self::getParametersForMethod($invokable, $method, false);
+        }
+
+        return null;
+    }
+
     public static function getParametersForFunction(
         string $function,
         bool $check_existence = true
