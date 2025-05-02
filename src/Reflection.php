@@ -14,7 +14,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
+//use RuntimeException;
 //use Throwable;
 
 use function class_exists;
@@ -52,6 +52,12 @@ class Reflection
      */
     private static $cache = self::EMPTY_CACHE;
 
+    /**
+     * Get the reflection class for given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @return ReflectionClass|null
+     */
     public static function getClass($objectOrClass): ?ReflectionClass
     {
         $class = self::getClassName($objectOrClass, false);
@@ -76,6 +82,13 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get the FQCN for given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @param bool $check_existence Checl clas existence?
+     * @return string|null
+     */
     private static function getClassName($objectOrClass, bool $check_existence = true): ?string
     {
         if (empty($objectOrClass)) {
@@ -93,6 +106,12 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get the reflection properties defined for given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @return array|null An array of reflection-properties indexed by name or NULL
+     */
     public static function getProperties($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
@@ -123,6 +142,13 @@ class Reflection
         return $rps;
     }
 
+    /**
+     * Get the reflection-property for given object/class-string and property-name
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @param string $name The property-name
+     * @return ReflectionProperty|null
+     */
     public static function getProperty($objectOrClass, string $name): ?ReflectionProperty
     {
         $rc = self::getClass($objectOrClass);
@@ -149,6 +175,12 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get the reflection methods defined for given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @return array|null An array of reflection-methods indexed by name or NULL
+     */
     public static function getMethods($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
@@ -179,6 +211,13 @@ class Reflection
         return $rms;
     }
 
+    /**
+     * Get the reflection-method for given object/class-string and method-name
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @param string $name The method-name
+     * @return ReflectionMethod|null
+     */
     public static function getMethod($objectOrClass, string $name): ?ReflectionMethod
     {
         $rc = self::getClass($objectOrClass);
@@ -205,6 +244,12 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get the reflection-constructor for given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @return ReflectionMethod|null
+     */
     public static function getConstructor($objectOrClass): ?ReflectionMethod
     {
         return self::getMethod($objectOrClass, '__construct');
@@ -228,6 +273,14 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get reflection-parameters for given (object/class-string, method-name) combination
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @param string $method The method-name
+     * @param bool $check_existence Check method existence before using cache?
+     * @return array|null
+     */
     public static function getParametersForMethod(
         $objectOrClass,
         string $method,
@@ -269,7 +322,7 @@ class Reflection
     }
 
     /**
-     * Get reflection parameters for an anonymous function or invokable-object
+     * Get reflection-parameters for given anonymous-function or invokable-object
      *
      * @param Closure|object $invokable
      * @return array|null
@@ -290,10 +343,10 @@ class Reflection
     }
 
     /**
-     * Get reflection parameters for a function-string
+     * Get reflection-parameters for a function-string
      *
-     * @param string $function The namespaced function name
-     * @param bool $check_existence Check function existence before using cache
+     * @param string $function The fully-qualified function-name
+     * @param bool $check_existence Check function existence before using cache?
      * @return array|null
      */
     public static function getParametersForFunction(
