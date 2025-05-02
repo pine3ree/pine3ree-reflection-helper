@@ -261,7 +261,7 @@ class Reflection
 
         // Case: closure/invokable-object
         if (is_object($callable)) {
-            return self::getParametersForInvokable($invokable);
+            return self::getParametersForInvokable($callable);
         }
 
         // Case: function
