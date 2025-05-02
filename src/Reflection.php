@@ -69,15 +69,13 @@ class Reflection
             return $rc;
         }
 
-        if (!class_exists($class)) {
-            return null;
+        if (class_exists($class)) {
+            $rc = new ReflectionClass($objectOrClass);
+            $cached_classes[$class] = $rc;
+            return $rc;
         }
 
-        $rc = new ReflectionClass($objectOrClass);
-
-        $cached_classes[$class] = $rc;
-
-        return $rc;
+        return null;
     }
 
     private static function getClassName($objectOrClass, bool $check_existence = true): ?string
