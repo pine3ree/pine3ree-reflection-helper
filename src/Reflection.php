@@ -32,7 +32,6 @@ class Reflection
 {
     public const CACHE_ALL        = '*';
     public const CACHE_CLASSES    = ReflectionClass::class;
-    public const CACHE_DECLARING  = 'DeclaringClass';
     public const CACHE_PROPERTIES = ReflectionProperty::class;
     public const CACHE_METHODS    = ReflectionMethod::class;
     public const CACHE_FUNCTIONS  = ReflectionFunction::class;
@@ -40,7 +39,6 @@ class Reflection
 
     private const EMPTY_CACHE = [
         self::CACHE_CLASSES    => [],
-        self::CACHE_DECLARING  => [],
         self::CACHE_PROPERTIES => [],
         self::CACHE_METHODS    => [],
         self::CACHE_FUNCTIONS  => [],
@@ -270,6 +268,12 @@ class Reflection
         return $parameters;
     }
 
+    /**
+     * Get reflection parameters for an anonymous function or invokable-object
+     *
+     * @param Closure|object $invokable
+     * @return array|null
+     */
     public static function getParametersForInvokable(object $invokable): ?array
     {
         // Anonymous/arrow function (cannot be cached)
@@ -285,6 +289,13 @@ class Reflection
         return null;
     }
 
+    /**
+     * Get reflection parameters for a function-string
+     *
+     * @param string $function The namespaced function name
+     * @param bool $check_existence Check function existence before using cache
+     * @return array|null
+     */
     public static function getParametersForFunction(
         string $function,
         bool $check_existence = true
@@ -313,27 +324,35 @@ class Reflection
         return $parameters;
     }
 
-    public static function clearCache(string $target): void
+    /**
+     * Clear the result cache
+     *
+     * @param string $type The cache key to clear, or '*' to clear all
+     * @return void
+     */
+    public static function clearCache(string $type = self::CACHE_ALL): void
     {
-        if ($target === self::CACHE_ALL) {
+        if ($type === self::CACHE_ALL) {
             self::$cache = self::EMPTY_CACHE;
-        } elseif (!empty(self::$cache[$target])) {
-            self::$cache[$target] = [];
+        } elseif (!empty(self::$cache[$type])) {
+            self::$cache[$type] = [];
         }
     }
 
     /**
+     * Get the cached results for given type or for all types
+     *
      * @internal Used for unit tests
      *
-     * @param string|null $target
+     * @param string|null $type
      * @return array|null
      */
-    public static function getCache(?string $target = null): ?array
+    public static function getCache(?string $type = null): ?array
     {
-        if (empty($target)) {
+        if (empty($type)) {
             return self::$cache;
         }
 
-        return self::$cache[$target] ?? null;
+        return self::$cache[$type] ?? null;
     }
 }
