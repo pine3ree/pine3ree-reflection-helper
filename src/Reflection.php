@@ -30,54 +30,14 @@ use function method_exists;
  */
 class Reflection
 {
-    public const CACHE_ALL        = '*';
-    public const CACHE_CLASSES    = ReflectionClass::class;
-    public const CACHE_DECLARING  = 'DeclaringClass';
-    public const CACHE_PROPERTIES = ReflectionProperty::class;
-    public const CACHE_METHODS    = ReflectionMethod::class;
-    public const CACHE_FUNCTIONS  = ReflectionFunction::class;
-    public const CACHE_PARAMETERS = ReflectionParameter::class;
-
-    private const EMPTY_CACHE = [
-        self::CACHE_CLASSES    => [],
-        self::CACHE_DECLARING  => [],
-        self::CACHE_PROPERTIES => [],
-        self::CACHE_METHODS    => [],
-        self::CACHE_FUNCTIONS  => [],
-        self::CACHE_PARAMETERS => [],
-    ];
-
-    /**
-     * A cache of resolved reflection classes indexed by class name
-     *
-     * @var array<string, array<string, ReflectionClass|ReflectionProperty|ReflectionMethod|ReflectionFunction|ReflectionParameter>>
-     */
-    private static $cache = self::EMPTY_CACHE;
-
     public static function getClass($objectOrClass): ?ReflectionClass
     {
-        $class = self::getClassName($objectOrClass, false);
+        $class = self::getClassName($objectOrClass, true);
         if (empty($class)) {
             return null;
         }
 
-        // Use a reference to make code easier to read
-        $cached_classes =& self::$cache[self::CACHE_CLASSES];
-
-        $rc = $cached_classes[$class] ?? null;
-        if ($rc instanceof ReflectionClass) {
-            return $rc;
-        }
-
-        if (!class_exists($class)) {
-            return null;
-        }
-
-        $rc = new ReflectionClass($objectOrClass);
-
-        $cached_classes[$class] = $rc;
-
-        return $rc;
+        return new ReflectionClass($objectOrClass);
     }
 
     private static function getClassName($objectOrClass, bool $check_existence = true): ?string
@@ -97,26 +57,6 @@ class Reflection
         return null;
     }
 
-    private static function getDeclaringClassName(object $propertyOrMethod): ?string
-    {
-        if ($propertyOrMethod instanceof ReflectionMethod
-            || $propertyOrMethod instanceof ReflectionProperty
-        ) {
-            $kclass = get_class($propertyOrMethod);
-            $kname  = $propertyOrMethod->getName();
-
-            $dclass = self::$cache[$kclass][$kname] ?? null;
-            if (empty($dclass)) {
-                $dclass = $propertyOrMethod->getDeclaringClass()->getName();
-                self::$cache[$kclass][$kname] = $dclass;
-            }
-
-            return $dclass;
-        }
-
-        return null;
-    }
-
     public static function getProperties($objectOrClass): ?array
     {
         $rc = self::getClass($objectOrClass);
@@ -124,34 +64,7 @@ class Reflection
             return null;
         }
 
-        $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
-
-        // Use a reference to make code easier to read
-        $cached_properties =& self::$cache[self::CACHE_PROPERTIES];
-
-        $all_are_cached = $cached_properties[$class][self::CACHE_ALL] ?? false;
-        if ($all_are_cached) {
-            $rps = $cached_properties[$class];
-            unset($rps[self::CACHE_ALL]); // Do not include the all-cached flag
-            return $rps;
-        }
-
-        $rps = [];
-        foreach ($rc->getProperties() as $rp) {
-            $rps[$rp->getName()] = $rp;
-        }
-
-        // Cache values for declaring-class as well
-        foreach ($rps as $name => $rp) {
-            $dclass = self::getDeclaringClassName($rp);
-            if ($dclass && $dclass !== $class && empty($cached_properties[$dclass][$name])) {
-                $cached_properties[$dclass][$name] = $rp;
-            }
-        }
-        $cached_properties[$class] = $rps;
-        $cached_properties[$class][self::CACHE_ALL] = true;
-
-        return $rps;
+        return $rc->getProperties();
     }
 
     public static function getProperty($objectOrClass, string $name): ?ReflectionProperty
@@ -161,24 +74,8 @@ class Reflection
             return null;
         }
 
-        $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
-
-        // Use a reference to make code easier to read
-        $cached_properties =& self::$cache[self::CACHE_PROPERTIES];
-
-        $rp = $cached_properties[$class][$name] ?? null;
-        if ($rp instanceof ReflectionProperty) {
-            return $rp;
-        }
-
         if ($rc->hasProperty($name)) {
-            $rp = $rc->getProperty($name);
-            $cached_properties[$class][$name] = $rp;
-            $dclass = self::getDeclaringClassName($rp);
-            if ($dclass && $dclass !== $class && empty($cached_properties[$dclass][$name])) {
-                $cached_properties[$dclass][$name] = $rp;
-            }
-            return $rp;
+            return $rc->getProperty($name);
         }
 
         return null;
@@ -191,35 +88,7 @@ class Reflection
             return null;
         }
 
-        $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
-
-        // Use a reference to make code easier to read
-        $cached_methods =& self::$cache[self::CACHE_METHODS];
-
-        $all_are_cached = $cached_methods[$class][self::CACHE_ALL] ?? false;
-        if ($all_are_cached) {
-            $rms = $cached_methods[$class];
-            unset($rms[self::CACHE_ALL]); // Do not include the all-cached flag
-            return $rms;
-        }
-
-        $rms = [];
-        foreach ($rc->getMethods() as $rm) {
-            $rms[$rm->getName()] = $rm;
-        }
-
-        // Cache values for declaring-class as well
-        foreach ($rms as $name => $rm) {
-            $dclass = self::getDeclaringClassName($rm);
-            if ($dclass && $dclass !== $class && empty($cached_methods[$dclass][$name])) {
-                $cached_methods[$dclass][$name] = $rm;
-            }
-        }
-
-        $cached_methods[$class] = $rms;
-        $cached_methods[$class][self::CACHE_ALL] = true; // Set the all-cached flag
-
-        return $rms;
+        return $rc->getMethods();
     }
 
     public static function getMethod($objectOrClass, string $name): ?ReflectionMethod
@@ -229,23 +98,8 @@ class Reflection
             return null;
         }
 
-        $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
-
-        // Use a reference to make code easier to read
-        $cached_methods =& self::$cache[self::CACHE_METHODS];
-
-        $rm = $cached_methods[$class][$name] ?? null;
-        if ($rm instanceof ReflectionMethod) {
-            return $rm;
-        }
-
         if ($rc->hasMethod($name)) {
             $rm = $name === '__construct' ? $rc->getConstructor() : $rc->getMethod($name);
-            $cached_methods[$class][$name] = $rm;
-            $dclass = self::getDeclaringClassName($rm);
-            if ($dclass && $dclass !== $class && empty($cached_methods[$dclass][$name])) {
-                $cached_methods[$dclass][$name] = $rm;
-            }
             return $rm;
         }
 
@@ -259,22 +113,11 @@ class Reflection
 
     public static function getFunction(string $function): ?ReflectionFunction
     {
-        $cache_functions =& self::$cache[self::CACHE_FUNCTIONS];
-
-        $rf = $cache_functions[$function] ?? null;
-        if ($rf instanceof ReflectionFunction) {
-            return $rf;
+        if (function_exists($function)) {
+            return new ReflectionFunction($function);
         }
 
-        if (!function_exists($function)) {
-            return null;
-        }
-
-        $rf = new ReflectionFunction($function);
-
-        $cache_functions[$function] = $rf;
-
-        return $rf;
+        return null;
     }
 
     /**
@@ -301,7 +144,7 @@ class Reflection
                     "An empty/invalid method value was provided in element {1} of the callable array-expression!"
                 );
             }
-            return self::getParametersForMethod($object, $method, true);
+            return self::getParametersForMethod($object, $method);
         }
 
         // Case: closure/invokable-object
@@ -313,122 +156,36 @@ class Reflection
             }
             // Invokable object
             if (method_exists($callable, $method = '__invoke')) {
-                return self::getParametersForMethod($callable, $method, false);
+                return self::getParametersForMethod($callable, $method);
             }
             return null;
         }
 
         // Case: function
         if (is_string($callable) && function_exists($callable)) {
-            return self::getParametersForFunction($callable, false, false);
+            return self::getParametersForFunction($callable);
         }
 
         return null;
     }
 
-    public static function getParametersForMethod(
-        $objectOrClass,
-        string $method,
-        bool $check_existence = true
-    ): ?array {
-        if (empty($method)) {
-            return null;
-        }
-
-        $class = self::getClassName($objectOrClass, $check_existence);
-        if (empty($class)) {
-            return null;
-        }
-
-        if ($check_existence && !method_exists($class, $method)) {
-            return null;
-        }
-
-        // Use a reference to make code easier to read
-        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-
-        // Try cached reflection parameters first, if any
-        $parameters = $cached_parameters[$class][$method] ?? null;
-        if (is_array($parameters)) {
-            return $parameters;
-        }
-
+    public static function getParametersForMethod($objectOrClass, string $method): ?array
+    {
         $rm = self::getMethod($objectOrClass, $method);
-        if ($rm === null) {
+        if (empty($rm)) {
             return null;
         }
 
-        $dclass = self::getDeclaringClassName($rm);
-
-        // Try cached reflection parameters in declaring class, if different
-        if ($dclass !== $class) {
-            $parameters = $cached_parameters[$dclass][$method] ?? null;
-            if (is_array($parameters)) {
-                $cached_parameters[$class][$method] = $parameters;
-                return $parameters;
-            }
-        }
-
-        // Get and cache the parameters
-        $parameters = $rm->getParameters();
-
-        $cached_parameters[$dclass][$method] = $parameters;
-        if ($dclass !== $class) {
-            $cached_parameters[$class][$method] = $parameters;
-        }
-
-        return $parameters;
+        return $rm->getParameters();
     }
 
-    public static function getParametersForFunction(
-        string $function,
-        bool $check_existence = true
-    ): ?array {
-        if ($check_existence && !function_exists($function)) {
-            return null;
-        }
-
-        // Use a reference to make code easier to read
-        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-
-        $parameters = $cached_parameters[$function] ?? null;
-        if (is_array($parameters)) {
-            return $parameters;
-        }
-
+    public static function getParametersForFunction(string $function): ?array
+    {
         $rf = self::getFunction($function);
         if ($rf === null) {
             return null;
         }
 
-        $parameters = $rf->getParameters();
-
-        $cached_parameters[$function] = $parameters;
-
-        return $parameters;
-    }
-
-    public static function clearCache(string $target): void
-    {
-        if ($target === self::CACHE_ALL) {
-            self::$cache = self::EMPTY_CACHE;
-        } elseif (!empty(self::$cache[$target])) {
-            self::$cache[$target] = [];
-        }
-    }
-
-    /**
-     * @internal Used for unit tests
-     *
-     * @param string|null $target
-     * @return array|null
-     */
-    public static function getCache(?string $target = null): ?array
-    {
-        if (empty($target)) {
-            return self::$cache;
-        }
-
-        return self::$cache[$target] ?? null;
+        return $rf->getParameters();
     }
 }
