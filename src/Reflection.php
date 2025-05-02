@@ -335,7 +335,7 @@ class Reflection
             return null;
         }
 
-        $class = self::getClassName($objectOrClass, $check_existence);
+        $class = self::getClassName($objectOrClass, true);
         if (empty($class)) {
             return null;
         }
