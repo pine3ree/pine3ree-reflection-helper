@@ -332,6 +332,18 @@ class Reflection
     }
 
     /**
+     * Get reflection-parameters for the constructor of given object/class-string
+     *
+     * @param object|string $objectOrClass An object or a class-string
+     * @param bool $check_existence Check constructor existence before using cache?
+     * @return array|null
+     */
+    public static function getParametersForConstructor($objectOrClass, bool  $check_existence = true): ?array
+    {
+        return self::getParametersForMethod($objectOrClass, '__construct', $check_existence);
+    }
+
+    /**
      * Get reflection-parameters for given anonymous-function or invokable-object
      *
      * @param Closure|object $invokable
