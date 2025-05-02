@@ -261,21 +261,12 @@ class Reflection
 
         // Case: closure/invokable-object
         if (is_object($callable)) {
-            // Anonymous/arrow function (cannot be cached)
-            if ($callable instanceof Closure) {
-                $rf = new ReflectionFunction($callable);
-                return $rf->getParameters();
-            }
-            // Invokable object
-            if (method_exists($callable, $method = '__invoke')) {
-                return self::getParametersForMethod($callable, $method, false);
-            }
-            return null;
+            return self::getParametersForInvokable($invokable);
         }
 
         // Case: function
         if (is_string($callable) && function_exists($callable)) {
-            return self::getParametersForFunction($callable, false, false);
+            return self::getParametersForFunction($callable, false);
         }
 
         return null;
