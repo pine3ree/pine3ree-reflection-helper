@@ -261,6 +261,12 @@ class Reflection
         return self::getMethod($objectOrClass, '__construct');
     }
 
+    /**
+     * Get the reflection-function for given function-name
+     *
+     * @param string $function
+     * @return ReflectionFunction|null
+     */
     public static function getFunction(string $function): ?ReflectionFunction
     {
         $rf = self::$functions[$function] ?? null;
