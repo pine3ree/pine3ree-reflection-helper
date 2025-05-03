@@ -13,6 +13,11 @@ namespace pine3ree\test\Helper\Asset;
  */
 class Bar extends Foo
 {
+    public function __invoke()
+    {
+        return $this->getFullName();
+    }
+
     public function getFullName()
     {
         return "{$this->getName()}bar";
