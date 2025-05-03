@@ -14,7 +14,7 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
-use Reflector;
+//use Reflector;
 //use RuntimeException;
 //use Throwable;
 
@@ -43,49 +43,57 @@ class Reflection
     public const CACHE_FUNCTIONS  = ReflectionFunction::class;
     public const CACHE_PARAMETERS = ReflectionParameter::class;
 
-    private const EMPTY_CACHE = [
-        self::CACHE_CLASSES    => [],
-        self::CACHE_PROPERTIES => [],
-        self::CACHE_METHODS    => [],
-        self::CACHE_FUNCTIONS  => [],
-        self::CACHE_PARAMETERS => [],
-    ];
+    /**
+     * A cache of resolved reflection-classes indexed by class-name
+     * @var array<empty>|array<string, ReflectionClass>
+     */
+    private static $classes = []; // @phpstan-ignore-line https://github.com/phpstan/phpstan/issues/4078
 
     /**
-     * A cache of resolved reflection classes indexed by class name
-     *
-     * @var array<string, array<string, ReflectionFunction>>|
-     *      array<string, array<string, ReflectionClass>>|
-     *      array<string, array<string, array<string, ReflectionProperty|ReflectionMethod|true>>>|
-     *      array<string, array<string, ReflectionParameter>|
-     *      array<string, array<string, array<string, ReflectionParameter>>
+     * A cache of resolved reflection-properties indexed by class-name and property-name
+     * @var array<empty>|array<string, array<string, ReflectionProperty|true>>
      */
-    private static $cache = self::EMPTY_CACHE;
+    private static $properties = [];
+
+    /**
+     * A cache of resolved reflection-methods indexed by class-name and method-name
+     * @var array<empty>|array<string, array<string, ReflectionMethod|true>>
+     */
+    private static $methods = [];
+
+    /**
+     * A cache of resolved reflection-functions indexed by class-name
+     * @var array<empty>|array<string, ReflectionFunction>
+     */
+    private static $functions = [];
+
+    /**
+     * A cache of resolved reflection-parameters indexed by class-string::method-key/function-name
+     * @var array<empty>|array<string, ReflectionParameter>
+     */
+    private static $parameters = [];
 
     /**
      * Get the reflection class for given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @return ReflectionClass|null
      */
-    public static function getClass($objectOrClass): ?ReflectionClass
+    public static function getClass($objectOrClass): ?ReflectionClass // @phpstan-ignore-line https://github.com/phpstan/phpstan/issues/4078
     {
         $class = self::getClassName($objectOrClass, false);
         if (empty($class)) {
             return null;
         }
 
-        // Use a reference to make code easier to read
-        $cached_classes =& self::$cache[self::CACHE_CLASSES];
-
-        $rc = $cached_classes[$class] ?? null;
+        $rc = self::$classes[$class] ?? null;
         if ($rc instanceof ReflectionClass) {
             return $rc;
         }
 
         if (class_exists($class)) {
             $rc = new ReflectionClass($objectOrClass);
-            $cached_classes[$class] = $rc;
+            self::$classes[$class] = $rc;
             return $rc;
         }
 
@@ -95,9 +103,9 @@ class Reflection
     /**
      * Get the FQCN for given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @param bool $check_existence Checl clas existence?
-     * @return string|null
+     * @return class-string|null
      */
     private static function getClassName($objectOrClass, bool $check_existence = true): ?string
     {
@@ -113,14 +121,14 @@ class Reflection
             }
             return $objectOrClass;
         }
-        return null;
+        return null; // @phpstan-ignore-line
     }
 
     /**
      * Get the reflection properties defined for given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
-     * @return array|null An array of reflection-properties indexed by name or NULL
+     * @param object|class-string $objectOrClass An object or a class-string
+     * @return array<string|ReflectionProperty>|null An array of reflection-properties indexed by name or NULL
      */
     public static function getProperties($objectOrClass): ?array
     {
@@ -131,13 +139,11 @@ class Reflection
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-        // Use a reference to make code easier to read
-        $cached_properties =& self::$cache[self::CACHE_PROPERTIES];
-
-        $all_are_cached = $cached_properties[$class][self::CACHE_ALL] ?? false;
+        $all_are_cached = self::$properties[$class][self::CACHE_ALL] ?? false;
         if ($all_are_cached) {
-            $rps = $cached_properties[$class];
+            $rps = self::$properties[$class];
             unset($rps[self::CACHE_ALL]); // Do not include the all-cached flag
+            /** @var array<string|ReflectionProperty> $rps */
             return $rps;
         }
 
@@ -146,8 +152,8 @@ class Reflection
             $rps[$rp->getName()] = $rp;
         }
 
-        $cached_properties[$class] = $rps;
-        $cached_properties[$class][self::CACHE_ALL] = true;
+        self::$properties[$class] = $rps;
+        self::$properties[$class][self::CACHE_ALL] = true;
 
         return $rps;
     }
@@ -155,7 +161,7 @@ class Reflection
     /**
      * Get the reflection-property for given object/class-string and property-name
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @param string $name The property-name
      * @return ReflectionProperty|null
      */
@@ -168,17 +174,15 @@ class Reflection
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-        // Use a reference to make code easier to read
-        $cached_properties =& self::$cache[self::CACHE_PROPERTIES];
-
-        $rp = $cached_properties[$class][$name] ?? null;
+        $rp = self::$properties[$class][$name] ?? null;
         if ($rp instanceof ReflectionProperty) {
             return $rp;
         }
 
         if ($rc->hasProperty($name)) {
             $rp = $rc->getProperty($name);
-            $cached_properties[$class][$name] = $rp;
+            // self::$properties[$class] ??= [];
+            self::$properties[$class][$name] = $rp; // @phpstan-ignore-line Or uncomment line above
             return $rp;
         }
 
@@ -188,8 +192,8 @@ class Reflection
     /**
      * Get the reflection methods defined for given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
-     * @return array|null An array of reflection-methods indexed by name or NULL
+     * @param object|class-string $objectOrClass An object or a class-string
+     * @return array<string|ReflectionMethod>|null An array of reflection-methods indexed by name or NULL
      */
     public static function getMethods($objectOrClass): ?array
     {
@@ -200,13 +204,11 @@ class Reflection
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-        // Use a reference to make code easier to read
-        $cached_methods =& self::$cache[self::CACHE_METHODS];
-
-        $all_are_cached = $cached_methods[$class][self::CACHE_ALL] ?? false;
+        $all_are_cached = self::$methods[$class][self::CACHE_ALL] ?? false;
         if ($all_are_cached) {
-            $rms = $cached_methods[$class];
+            $rms = self::$methods[$class];
             unset($rms[self::CACHE_ALL]); // Do not include the all-cached flag
+            /** @var array<string|ReflectionMethod> $rms */
             return $rms;
         }
 
@@ -215,8 +217,8 @@ class Reflection
             $rms[$rm->getName()] = $rm;
         }
 
-        $cached_methods[$class] = $rms;
-        $cached_methods[$class][self::CACHE_ALL] = true; // Set the all-cached flag
+        self::$methods[$class] = $rms;
+        self::$methods[$class][self::CACHE_ALL] = true; // Set the all-cached flag
 
         return $rms;
     }
@@ -224,7 +226,7 @@ class Reflection
     /**
      * Get the reflection-method for given object/class-string and method-name
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @param string $name The method-name
      * @return ReflectionMethod|null
      */
@@ -237,17 +239,15 @@ class Reflection
 
         $class = is_string($objectOrClass) ? $objectOrClass : $rc->getName();
 
-        // Use a reference to make code easier to read
-        $cached_methods =& self::$cache[self::CACHE_METHODS];
-
-        $rm = $cached_methods[$class][$name] ?? null;
+        $rm = self::$methods[$class][$name] ?? null;
         if ($rm instanceof ReflectionMethod) {
             return $rm;
         }
 
         if ($rc->hasMethod($name)) {
             $rm = $name === '__construct' ? $rc->getConstructor() : $rc->getMethod($name);
-            $cached_methods[$class][$name] = $rm;
+            // self::$methods[$class] ??= [];
+            self::$methods[$class][$name] = $rm; // @phpstan-ignore-line Or uncomment line above
             return $rm;
         }
 
@@ -257,7 +257,7 @@ class Reflection
     /**
      * Get the reflection-constructor for given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @return ReflectionMethod|null
      */
     public static function getConstructor($objectOrClass): ?ReflectionMethod
@@ -267,16 +267,14 @@ class Reflection
 
     public static function getFunction(string $function): ?ReflectionFunction
     {
-        $cache_functions =& self::$cache[self::CACHE_FUNCTIONS];
-
-        $rf = $cache_functions[$function] ?? null;
+        $rf = self::$functions[$function] ?? null;
         if ($rf instanceof ReflectionFunction) {
             return $rf;
         }
 
         if (function_exists($function)) {
             $rf = new ReflectionFunction($function);
-            $cache_functions[$function] = $rf;
+            self::$functions[$function] = $rf;
             return $rf;
         }
 
@@ -286,10 +284,10 @@ class Reflection
     /**
      * Get reflection-parameters for given (object/class-string, method-name) combination
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @param string $method The method-name
      * @param bool $check_existence Check method existence before using cache?
-     * @return array|null
+     * @return array<int, ReflectionParameter>|null
      */
     public static function getParametersForMethod(
         $objectOrClass,
@@ -309,11 +307,10 @@ class Reflection
             return null;
         }
 
-        // Use a reference to make code easier to read
-        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
+        $cmkey = "{$class}::{$method}";
 
         // Try cached reflection parameters first, if any
-        $parameters = $cached_parameters[$class][$method] ?? null;
+        $parameters = self::$parameters[$cmkey] ?? null;
         if (is_array($parameters)) {
             return $parameters;
         }
@@ -326,7 +323,7 @@ class Reflection
         // Get and cache the parameters
         $parameters = $rm->getParameters();
 
-        $cached_parameters[$class][$method] = $parameters;
+        self::$parameters[$cmkey] = $parameters;
 
         return $parameters;
     }
@@ -334,9 +331,9 @@ class Reflection
     /**
      * Get reflection-parameters for the constructor of given object/class-string
      *
-     * @param object|string $objectOrClass An object or a class-string
+     * @param object|class-string $objectOrClass An object or a class-string
      * @param bool $check_existence Check constructor existence before using cache?
-     * @return array|null
+     * @return array<int, ReflectionParameter>|null
      */
     public static function getParametersForConstructor($objectOrClass, bool  $check_existence = true): ?array
     {
@@ -347,7 +344,7 @@ class Reflection
      * Get reflection-parameters for given anonymous-function or invokable-object
      *
      * @param Closure|object $invokable
-     * @return array|null
+     * @return array<int, ReflectionParameter>|null
      */
     public static function getParametersForInvokable(object $invokable): ?array
     {
@@ -369,7 +366,7 @@ class Reflection
      *
      * @param string $function The fully-qualified function-name
      * @param bool $check_existence Check function existence before using cache?
-     * @return array|null
+     * @return array<int, ReflectionParameter>|null
      */
     public static function getParametersForFunction(
         string $function,
@@ -379,10 +376,7 @@ class Reflection
             return null;
         }
 
-        // Use a reference to make code easier to read
-        $cached_parameters =& self::$cache[self::CACHE_PARAMETERS];
-
-        $parameters = $cached_parameters[$function] ?? null;
+        $parameters = self::$parameters[$function] ?? null;
         if (is_array($parameters)) {
             return $parameters;
         }
@@ -394,7 +388,7 @@ class Reflection
 
         $parameters = $rf->getParameters();
 
-        $cached_parameters[$function] = $parameters;
+        self::$parameters[$function] = $parameters;
 
         return $parameters;
     }
@@ -407,10 +401,24 @@ class Reflection
      */
     public static function clearCache(string $type = self::CACHE_ALL): void
     {
-        if ($type === self::CACHE_ALL) {
-            self::$cache = self::EMPTY_CACHE;
-        } elseif (!empty(self::$cache[$type])) {
-            self::$cache[$type] = [];
+        switch ($type) {
+            case self::CACHE_ALL:
+                // no-break => will call all next cases
+            case self::CACHE_CLASSES:
+                self::$classes = [];
+                break;
+            case self::CACHE_PROPERTIES:
+                self::$properties = [];
+                break;
+            case self::CACHE_METHODS:
+                self::$methods = [];
+                break;
+            case self::CACHE_FUNCTIONS:
+                self::$functions = [];
+                break;
+            case self::CACHE_PARAMETERS:
+                self::$parameters = [];
+                break;
         }
     }
 
@@ -420,14 +428,33 @@ class Reflection
      * @internal Used for unit tests
      *
      * @param string|null $type
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     public static function getCache(?string $type = null): ?array
     {
-        if (empty($type)) {
-            return self::$cache;
+        if (empty($type) || $type === self::CACHE_ALL) {
+            return [
+                self::CACHE_CLASSES    => self::$classes,
+                self::CACHE_PROPERTIES => self::$properties,
+                self::CACHE_METHODS    => self::$methods,
+                self::CACHE_FUNCTIONS  => self::$functions,
+                self::CACHE_PARAMETERS => self::$parameters,
+            ];
         }
 
-        return self::$cache[$type] ?? null;
+        switch ($type) {
+            case self::CACHE_CLASSES:
+                return self::$classes;
+            case self::CACHE_PROPERTIES:
+                return self::$properties;
+            case self::CACHE_METHODS:
+                return self::$methods;
+            case self::CACHE_FUNCTIONS:
+                return self::$functions;
+            case self::CACHE_PARAMETERS:
+                return self::$parameters;
+        }
+
+        return null;
     }
 }
