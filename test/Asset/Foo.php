@@ -13,15 +13,15 @@ namespace pine3ree\test\Helper\Asset;
  */
 class Foo
 {
-    private string $name;
+    private string $myName;
 
-    public function __construct(string $name = 'foo')
+    public function __construct(string $myName = 'foo')
     {
-        $this->name = $name;
+        $this->myName = $myName;
     }
 
     public function getName()
     {
-        return $this->name;
+        return $this->myName;
     }
 }

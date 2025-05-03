@@ -15,6 +15,6 @@ class Bar extends Foo
 {
     public function getFullName()
     {
-        return "{$this->name}bar";
+        return "{$this->getName()}bar";
     }
 }
