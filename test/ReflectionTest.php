@@ -452,7 +452,7 @@ final class ReflectionTest extends TestCase
         }
     }
 
-    public function testGetCacheRetunrììrnsNullForInvalidType()
+    public function testGetCacheReturnsNullForInvalidType()
     {
         self::assertNull(Reflection::getCache('nonExistent'));
     }
