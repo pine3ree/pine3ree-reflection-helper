@@ -36,7 +36,29 @@ final class ReflectionTest extends TestCase
 {
     protected function setUp(): void
     {
-        ;
+        Reflection::clearCache();
+    }
+
+    public function testGetClass()
+    {
+        Reflection::clearCache();
+
+        // Positive for existing class
+        $rc = Reflection::getClass(Foo::class);
+        self::assertInstanceOf(ReflectionClass::class, $rc);
+        self::assertEquals(Foo::class, $rc->getName());
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_CLASSES);
+
+        self::assertSame(Reflection::getClass(Foo::class), Reflection::getClass(Foo::class));
+        self::assertSame(Reflection::getClass(Foo::class), Reflection::getClass(new Foo('foo')));
+
+        // Negative lookup
+        self::assertNull(Reflection::getClass(''));
+        self::assertNull(Reflection::getClass(123));
+        self::assertNull(Reflection::getClass(1.23));
+        self::assertNull(Reflection::getClass([]));
     }
 
     public function testThatGetClassReturnsReflectionClassForExistingClass()
@@ -56,19 +78,15 @@ final class ReflectionTest extends TestCase
         self::assertNull(Reflection::getClass(''));
     }
 
-    public function testThatGetClassNameWorksForExistingClass()
+    public function testGetClassName()
     {
         $getClassName = new ReflectionMethod(Reflection::class, 'getClassName');
         $getClassName->setAccessible(true);
 
+        // Success
         self::assertEquals(Foo::class, $getClassName->invoke(null, Foo::class, true));
-    }
 
-    public function testThatGetClassNameReturnsNullForNonExistentClass()
-    {
-        $getClassName = new ReflectionMethod(Reflection::class, 'getClassName');
-        $getClassName->setAccessible(true);
-
+        // Failure
         self::assertNull($getClassName->invoke(null, NonExistentClass::class, true));
     }
 
@@ -94,28 +112,142 @@ final class ReflectionTest extends TestCase
         ];
     }
 
-    public function testThatGetMethodReturnsReflectionMethodForExistingClassMethod()
+    public function testThatGettingAnythingFromNonExistentClassReturnsNull()
     {
-        $methodName = 'getTimestamp';
-
-        $rm = Reflection::getMethod(DateTimeImmutable::class, $methodName);
-
-        self::assertInstanceOf(ReflectionMethod::class, $rm);
-
+        self::assertNull(Reflection::getClass(NonExistentClass::class));
+        self::assertNull(Reflection::getProperties(NonExistentClass::class));
+        self::assertNull(Reflection::getProperty(NonExistentClass::class, 'someProperty'));
+        self::assertNull(Reflection::getMethods(NonExistentClass::class));
+        self::assertNull(Reflection::getMethod(NonExistentClass::class, 'someMethod'));
     }
 
-    public function testThatResolvedReflectionsMethodsAreCached()
+    public function testGetProperties()
     {
-        $methodName = 'getTimestamp';
+        Reflection::clearCache();
 
-        $rm = Reflection::getMethod(DateTimeImmutable::class, $methodName);
+        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
 
-        self::assertSame($rm, Reflection::getMethod(DateTimeImmutable::class, $methodName));
-        self::assertSame($rm, Reflection::getMethod(new DateTimeImmutable(), $methodName));
-        self::assertSame($rm, Reflection::getMethod(new DateTimeImmutable(), $methodName));
+        self::assertIsArray($cache);
+        self::assertEmpty($cache);
+
+        $props = Reflection::getProperties(Foo::class);
+        $myNameProp = Reflection::getProperty(Foo::class, 'myName');
+
+        self::assertIsArray($props);
+        self::assertArrayHasKey('myName', $props);
+
+        foreach ($props as $name => $prop) {
+            self::assertIsString($name);
+            self::assertInstanceOf(ReflectionProperty::class, $myNameProp);
+        }
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
+
+        self::assertSame($props, Reflection::getProperties(Foo::class));
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
+        self::assertArrayHasKey(Foo::class, $cache);
+        self::assertIsArray($cache[Foo::class]);
+        self::assertArrayHasKey(Reflection::CACHE_ALL, $cache[Foo::class]);
+        self::assertSame($props + [Reflection::CACHE_ALL => true], $cache[Foo::class]);
+
+        self::assertArrayHasKey('myName', $cache[Foo::class]);
+        self::assertSame($myNameProp, $cache[Foo::class]['myName']);
     }
 
-    public function testConstructor()
+    public function testGetProperty()
+    {
+        Reflection::clearCache();
+
+        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
+
+        self::assertIsArray($cache);
+        self::assertEmpty($cache);
+
+        $myNameProp = Reflection::getProperty(Foo::class, 'myName');
+
+        self::assertInstanceOf(ReflectionProperty::class, $myNameProp);
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
+        self::assertArrayHasKey(Foo::class, $cache);
+
+        self::assertArrayHasKey('myName', $cache[Foo::class]);
+        self::assertSame($myNameProp, $cache[Foo::class]['myName']);
+        self::assertSame($myNameProp, Reflection::getProperty(Foo::class, 'myName'));
+
+        // Negative lookup
+        self::assertNull(Reflection::getProperty(Foo::class, 'nonExistent'));
+        self::assertNull(Reflection::getProperty(Foo::class, ''));
+    }
+
+    public function testGetMethods()
+    {
+        Reflection::clearCache();
+
+        $methods = Reflection::getMethods(Foo::class);
+        $getNameMethod = Reflection::getMethod(Foo::class, 'getName');
+
+        self::assertIsArray($methods);
+        self::assertArrayHasKey('__construct', $methods);
+        self::assertArrayHasKey('getName', $methods);
+
+        foreach ($methods as $name => $method) {
+            self::assertIsString($name);
+            self::assertInstanceOf(ReflectionMethod::class, $method);
+        }
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_METHODS);
+
+        self::assertSame($methods, Reflection::getMethods(Foo::class));
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
+        self::assertArrayHasKey(Foo::class, $cache);
+        self::assertIsArray($cache[Foo::class]);
+        self::assertArrayHasKey(Reflection::CACHE_ALL, $cache[Foo::class]);
+        self::assertSame($methods + [Reflection::CACHE_ALL => true], $cache[Foo::class]);
+
+        self::assertArrayHasKey('getName', $cache[Foo::class]);
+        self::assertSame($getNameMethod, $cache[Foo::class]['getName']);
+    }
+
+    public function testGetMethod()
+    {
+        Reflection::clearCache();
+
+        $cache = Reflection::getCache(Reflection::CACHE_METHODS);
+
+        self::assertIsArray($cache);
+        self::assertEmpty($cache);
+
+        $getNameMethod = Reflection::getMethod(Foo::class, 'getName');
+
+        self::assertInstanceOf(ReflectionMethod::class, $getNameMethod);
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_METHODS);
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
+        self::assertArrayHasKey(Foo::class, $cache);
+
+        self::assertArrayHasKey('getName', $cache[Foo::class]);
+        self::assertSame($getNameMethod, $cache[Foo::class]['getName']);
+        self::assertSame($getNameMethod, Reflection::getMethod(Foo::class, 'getName'));
+
+        // Negative lookup
+        self::assertNull(Reflection::getMethod(Foo::class, 'nonExistent'));
+        self::assertNull(Reflection::getMethod(Foo::class, ''));
+    }
+
+    public function testGetConstructor()
     {
         $foo = new Foo('foo');
 
@@ -128,65 +260,6 @@ final class ReflectionTest extends TestCase
         self::assertSame($ctor, Reflection::getConstructor(Foo::class));
         self::assertSame($ctor, Reflection::getMethod($foo, $methodName));
         self::assertSame($ctor, Reflection::getMethod(Foo::class, $methodName));
-    }
-
-    public function testThatGettingAnythingFromNonExistentClassReturnsNull()
-    {
-        self::assertNull(Reflection::getClass(NonExistentClass::class));
-        self::assertNull(Reflection::getProperties(NonExistentClass::class));
-        self::assertNull(Reflection::getProperty(NonExistentClass::class, 'someProperty'));
-        self::assertNull(Reflection::getMethods(NonExistentClass::class));
-        self::assertNull(Reflection::getMethod(NonExistentClass::class, 'someMethod'));
-    }
-
-    public function testThatGettingNonExistentPropertyReturnsNull()
-    {
-        self::assertNull(Reflection::getMethod(Foo::class, 'nonExistent'));
-    }
-
-    public function testThatGettingNonExistentMethodReturnsNull()
-    {
-        self::assertNull(Reflection::getProperty(Foo::class, 'nonExistent'));
-    }
-
-    public function testThatGettingNonExistentFunctionReturnsNull()
-    {
-        self::assertNull(Reflection::getFunction('nonExistentFunction'));
-    }
-
-    public function testThatExistingPropertyIsCached()
-    {
-        Reflection::clearCache();
-        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
-        self::assertIsArray($cache);
-        self::assertEmpty($cache);
-
-        $prop  = Reflection::getProperty(Foo::class, 'myName');
-
-        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
-        self::assertIsArray($cache);
-        self::assertNotEmpty($cache);
-        self::assertArrayHasKey(Foo::class, $cache);
-        self::assertArrayHasKey('myName', $cache[Foo::class]);
-        self::assertSame($prop, $cache[Foo::class]['myName']);
-
-    }
-
-    public function testThatAllPropertiesAreCached()
-    {
-        $props = Reflection::getProperties(Foo::class);
-        $prop  = Reflection::getProperty(Foo::class, 'myName');
-
-        $cache = Reflection::getCache(Reflection::CACHE_PROPERTIES);
-
-        self::assertIsArray($cache);
-        self::assertArrayHasKey(Foo::class, $cache);
-        self::assertIsArray($cache[Foo::class]);
-        self::assertArrayHasKey(Reflection::CACHE_ALL, $cache[Foo::class]);
-        self::assertSame($props + [Reflection::CACHE_ALL => true], $cache[Foo::class]);
-
-        self::assertArrayHasKey('myName', $cache[Foo::class]);
-        self::assertSame($prop, $cache[Foo::class]['myName']);
     }
 
     public function testClosure()
@@ -202,19 +275,110 @@ final class ReflectionTest extends TestCase
         self::assertInstanceOf(ReflectionFunction::class, $rf);
     }
 
-    public function testThatFunctionsAreCached()
+    public function testGetFunction()
     {
+        Reflection::clearCache();
+
         $rf1 = Reflection::getFunction('strtoupper');
         $rf2 = Reflection::getFunction('strtolower');
 
+        self::assertInstanceOf(ReflectionFunction::class, $rf1);
+        self::assertInstanceOf(ReflectionFunction::class, $rf2);
+
+        // Test cache
         $cache = Reflection::getCache(Reflection::CACHE_FUNCTIONS);
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
 
         self::assertArrayHasKey('strtoupper', $cache);
         self::assertArrayHasKey('strtolower', $cache);
-        self::assertInstanceOf(ReflectionFunction::class, $cache['strtoupper']);
-        self::assertInstanceOf(ReflectionFunction::class, $cache['strtolower']);
         self::assertSame($rf1, $cache['strtoupper']);
         self::assertSame($rf2, $cache['strtolower']);
+
+        // Negative lookup
+        self::assertNull(Reflection::getFunction('nonExistentFunction'));
+        self::assertNull(Reflection::getFunction(''));
+    }
+
+    public function testGetParametersForMethod()
+    {
+        $foo = new Foo();
+
+        $params = Reflection::getParametersForMethod($foo, 'getName');
+
+        self::assertIsArray($params);
+
+        foreach ($params as $param) {
+            self::assertInstanceOf(ReflectionParameter::class, $param);
+        }
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_PARAMETERS);
+        self::assertSame($params, Reflection::getParametersForMethod($foo, 'getName'));
+
+
+        // Negative lookups
+        self::assertNull(Reflection::getParametersForMethod($foo, ''));
+        self::assertNull(Reflection::getParametersForMethod(NonExistentClass::class, 'someMethod', true));
+        self::assertNull(Reflection::getParametersForMethod(Foo::class, 'nonExistentMethod'));
+        self::assertNull(Reflection::getParametersForMethod(Foo::class, 'nonExistentMethod', true));
+        self::assertNull(Reflection::getParametersForMethod(Foo::class, 'nonExistentMethod', false));
+    }
+
+    public function testGetParametersForInvokable()
+    {
+        $foo = new Foo(); // not-invokable
+        $bar = new Bar(); // invokable
+        // Closure
+        $fnc = function () {
+            return 42;
+        };
+
+        $params1 = Reflection::getParametersForInvokable($bar);
+        $params2 = Reflection::getParametersForInvokable($fnc);
+
+        self::assertIsArray($params1);
+        self::assertIsArray($params2);
+
+        foreach ($params1 as $param) {
+            self::assertInstanceOf(ReflectionParameter::class, $param);
+        }
+        foreach ($params2 as $param) {
+            self::assertInstanceOf(ReflectionParameter::class, $param);
+        }
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_PARAMETERS);
+
+        self::assertSame($params1, Reflection::getParametersForInvokable($bar));
+        self::assertSame($params2, Reflection::getParametersForInvokable($fnc));
+
+        // Negative lookups
+        self::assertNull(Reflection::getParametersForInvokable($foo));
+    }
+
+    public function testGetParametersForFunction()
+    {
+        $foo = new Foo();
+
+        $params = Reflection::getParametersForFunction('strtoupper');
+
+        self::assertIsArray($params);
+
+        foreach ($params as $param) {
+            self::assertInstanceOf(ReflectionParameter::class, $param);
+        }
+
+        // Test cache
+        $cache = Reflection::getCache(Reflection::CACHE_PARAMETERS);
+        self::assertSame($params, Reflection::getParametersForFunction('strtoupper'));
+
+
+        // Negative lookups
+        self::assertNull(Reflection::getParametersForFunction('nonExistentFunction'));
+        self::assertNull(Reflection::getParametersForFunction('nonExistentFunction', true));
+        self::assertNull(Reflection::getParametersForFunction('nonExistentFunction', false));
     }
 
     public function testCacheStructureIsCorrect()
@@ -299,18 +463,123 @@ final class ReflectionTest extends TestCase
         }
     }
 
-    public function testThatEmptyCacheWorks()
+    public function testGetCacheRetunrììrnsNullForInvalidType()
     {
-        Reflection::getProperties(Foo::class, true);
-        $cache = Reflection::getCache();
-        self::assertArrayHasKey(Reflection::CACHE_PROPERTIES, $cache);
-        $cache = $cache[Reflection::CACHE_PROPERTIES];
-        self::assertArrayHasKey(Foo::class, $cache);
+        self::assertNull(Reflection::getCache('nonExistent'));
     }
 
-//    public function testDumpCache()
-//    {
-//        self::assertEquals(true, true);
-//        echo "\n" . json_encode(Reflection::getCache(), JSON_PRETTY_PRINT) . "\n\n";
-//    }
+    public function testClearCache()
+    {
+        $foo = new Foo('foo');
+        $bar = new Bar('bar');
+
+        // Fill-up the cache
+        Reflection::getClass($foo);
+        Reflection::getProperties($foo);
+        Reflection::getMethods($foo);
+        Reflection::getFunction('strtoupper');
+        Reflection::getParametersForMethod($foo, '__construct');
+        Reflection::getParametersForFunction('strtoupper');
+        Reflection::getParametersForInvokable($bar);
+
+        $cache = Reflection::getCache();
+
+        self::assertIsArray($cache);
+        self::assertNotEmpty($cache);
+
+        self::assertArrayHasKey(Reflection::CACHE_CLASSES, $cache);
+        self::assertArrayHasKey(Reflection::CACHE_PROPERTIES, $cache);
+        self::assertArrayHasKey(Reflection::CACHE_METHODS, $cache);
+        self::assertArrayHasKey(Reflection::CACHE_FUNCTIONS, $cache);
+        self::assertArrayHasKey(Reflection::CACHE_PARAMETERS, $cache);
+
+        self::assertIsArray($cache[Reflection::CACHE_CLASSES]);
+        self::assertIsArray($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertIsArray($cache[Reflection::CACHE_METHODS]);
+        self::assertIsArray($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertIsArray($cache[Reflection::CACHE_PARAMETERS]);
+
+        self::assertNotEmpty($cache[Reflection::CACHE_CLASSES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_METHODS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PARAMETERS]);
+
+        Reflection::clearCache(Reflection::CACHE_CLASSES);
+        $cache = Reflection::getCache();
+        self::assertIsArray($cache[Reflection::CACHE_CLASSES]);
+        self::assertEmpty($cache[Reflection::CACHE_CLASSES]);
+
+        Reflection::clearCache(Reflection::CACHE_PROPERTIES);
+        $cache = Reflection::getCache();
+        self::assertIsArray($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertEmpty($cache[Reflection::CACHE_PROPERTIES]);
+
+        Reflection::clearCache(Reflection::CACHE_METHODS);
+        $cache = Reflection::getCache();
+        self::assertIsArray($cache[Reflection::CACHE_METHODS]);
+        self::assertEmpty($cache[Reflection::CACHE_METHODS]);
+
+        Reflection::clearCache(Reflection::CACHE_FUNCTIONS);
+        $cache = Reflection::getCache();
+        self::assertIsArray($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+
+        Reflection::clearCache(Reflection::CACHE_PARAMETERS);
+        $cache = Reflection::getCache();
+        self::assertIsArray($cache[Reflection::CACHE_PARAMETERS]);
+        self::assertEmpty($cache[Reflection::CACHE_PARAMETERS]);
+
+        // Test clearCache() with argument
+        Reflection::getClass($foo);
+        Reflection::getProperties($foo);
+        Reflection::getMethods($foo);
+        Reflection::getFunction('strtoupper');
+        Reflection::getParametersForMethod($foo, '__construct');
+        Reflection::getParametersForFunction('strtoupper');
+        Reflection::getParametersForInvokable($bar);
+
+        $cache = Reflection::getCache();
+
+        self::assertNotEmpty($cache[Reflection::CACHE_CLASSES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_METHODS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PARAMETERS]);
+
+        Reflection::clearCache(Reflection::CACHE_ALL);
+        $cache = Reflection::getCache();
+
+        self::assertEmpty($cache[Reflection::CACHE_CLASSES]);
+        self::assertEmpty($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertEmpty($cache[Reflection::CACHE_METHODS]);
+        self::assertEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertEmpty($cache[Reflection::CACHE_PARAMETERS]);
+
+        // Test clearCache() without argument
+        Reflection::getClass($foo);
+        Reflection::getProperties($foo);
+        Reflection::getMethods($foo);
+        Reflection::getFunction('strtoupper');
+        Reflection::getParametersForMethod($foo, '__construct');
+        Reflection::getParametersForFunction('strtoupper');
+        Reflection::getParametersForInvokable($bar);
+
+        $cache = Reflection::getCache();
+
+        self::assertNotEmpty($cache[Reflection::CACHE_CLASSES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertNotEmpty($cache[Reflection::CACHE_METHODS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertNotEmpty($cache[Reflection::CACHE_PARAMETERS]);
+
+        Reflection::clearCache();
+        $cache = Reflection::getCache();
+
+        self::assertEmpty($cache[Reflection::CACHE_CLASSES]);
+        self::assertEmpty($cache[Reflection::CACHE_PROPERTIES]);
+        self::assertEmpty($cache[Reflection::CACHE_METHODS]);
+        self::assertEmpty($cache[Reflection::CACHE_FUNCTIONS]);
+        self::assertEmpty($cache[Reflection::CACHE_PARAMETERS]);
+    }
 }
