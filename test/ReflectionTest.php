@@ -8,29 +8,18 @@
 
 namespace pine3ree\test\Helper;
 
-use DateTime;
-use DateTimeImmutable;
-use DateTimeInterface;
-use DateTimeZone;
-use DirectoryIterator;
 use PHPUnit\Framework\TestCase;
-//use Psr\Container\ContainerInterface;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
 use pine3ree\Helper\Reflection;
-
 use pine3ree\test\Helper\Asset\Foo;
 use pine3ree\test\Helper\Asset\Bar;
 
-use const PHP_VERSION_ID;
-
-use function strtoupper;
-use function time;
-
+use function is_int;
+use function is_string;
 
 final class ReflectionTest extends TestCase
 {
