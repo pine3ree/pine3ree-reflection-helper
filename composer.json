@@ -1,5 +1,5 @@
 {
-    "name": "pine3ree/pine3ree-reflection",
+    "name": "pine3ree/pine3ree-reflection-helper",
     "description": "A basic reflection helper",
     "type": "library",
     "keywords": [
@@ -7,7 +7,7 @@
         "helper",
         "reflection"
     ],
-    "homepage": "https://github.com/pine3ree/pine3ree-reflection",
+    "homepage": "https://github.com/pine3ree/pine3ree-reflection-helper",
     "readme": "README.md",
     "license": "BSD-3-Clause",
     "authors": [
@@ -18,9 +18,9 @@
         }
     ],
     "support": {
-        "docs": "https://github.com/pine3ree/pine3ree-reflection/blob/master/README.md",
-        "issues": "https://github.com/pine3ree/pine3ree-reflection/issues",
-        "source": "https://github.com/pine3ree/pine3ree-reflection"
+        "docs": "https://github.com/pine3ree/pine3ree-reflection-helper/blob/master/README.md",
+        "issues": "https://github.com/pine3ree/pine3ree-reflection-helper/issues",
+        "source": "https://github.com/pine3ree/pine3ree-reflection-helper"
     },
     "config": {
         "sort-packages": true,
