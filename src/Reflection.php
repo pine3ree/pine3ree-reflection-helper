@@ -403,7 +403,12 @@ class Reflection
     {
         switch ($type) {
             case self::CACHE_ALL:
-                // no-break => will call all next cases
+                self::$classes = [];
+                self::$properties = [];
+                self::$methods = [];
+                self::$functions = [];
+                self::$parameters = [];
+                break;
             case self::CACHE_CLASSES:
                 self::$classes = [];
                 break;
