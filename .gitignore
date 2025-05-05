@@ -19,6 +19,7 @@
 /clover.xml
 
 .php_cs.cache
+.php-cs.cache
 .phpcs.cache
 .phpcs-cache
 

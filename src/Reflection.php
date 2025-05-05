@@ -5,6 +5,8 @@
  * @author  pine3ree https://github.com/pine3ree
  */
 
+declare(strict_types=1);
+
 namespace pine3ree\Helper;
 
 use Closure;
@@ -74,8 +76,10 @@ class Reflection
      *
      * @param object|class-string $objectOrClass An object or a class-string
      * @return ReflectionClass|null
+     *
+     * @phpstan-ignore-next-line https://github.com/phpstan/phpstan/issues/4078
      */
-    public static function getClass($objectOrClass): ?ReflectionClass // @phpstan-ignore-line https://github.com/phpstan/phpstan/issues/4078
+    public static function getClass($objectOrClass): ?ReflectionClass
     {
         $class = self::getClassName($objectOrClass, false);
         if (empty($class)) {
