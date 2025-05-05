@@ -1,5 +1,7 @@
 # pine3ree-reflection-helper
 
+[![Continuous Integration](https://github.com/pine3ree/pine3ree-reflection-helper/actions/workflows/continuos-integration.yml/badge.svg)](https://github.com/pine3ree/pine3ree-reflection-helper/actions/workflows/continuos-integration.yml)
+
 This package provides a simple helper that return reflection classes for given
 object/class/function and cache the results.
 
